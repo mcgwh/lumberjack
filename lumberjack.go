@@ -134,30 +134,38 @@ var (
 // If the length of the write is greater than MaxSize, an error is returned.
 func (l *Logger) Write(p []byte) (n int, err error) {
 	l.mu.Lock()
-	defer l.mu.Unlock()
-
+	//defer l.mu.Unlock()
+	
+	n = 0
+	err = nil
+	
 	writeLen := int64(len(p))
 	if writeLen > l.max() {
-		return 0, fmt.Errorf(
+		err = fmt.Errorf(
 			"write length %d exceeds maximum file size %d", writeLen, l.max(),
 		)
+		
+		goto ERROR_EXIT
 	}
 
 	if l.file == nil {
 		if err = l.openExistingOrNew(len(p)); err != nil {
-			return 0, err
+			goto ERROR_EXIT
 		}
 	}
 
 	if l.size+writeLen > l.max() {
 		if err := l.rotate(); err != nil {
-			return 0, err
+			goto ERROR_EXIT
 		}
 	}
 
 	n, err = l.file.Write(p)
 	l.size += int64(n)
 
+ERROR_EXIT:	
+	l.mu.Unlock()
+	
 	return n, err
 }
 
